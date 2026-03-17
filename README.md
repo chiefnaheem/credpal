@@ -1,98 +1,204 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# FX Trading App — Backend API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A scalable backend for an FX Trading platform built with NestJS, TypeORM, PostgreSQL, and Redis. Users can register, verify their email, fund wallets, convert currencies using real-time exchange rates, and trade Naira (NGN) against international currencies.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Tech Stack
 
-## Description
+- **Framework:** NestJS (Node.js)
+- **ORM:** TypeORM
+- **Database:** PostgreSQL
+- **Cache:** Redis (ioredis)
+- **Auth:** JWT (Passport)
+- **Docs:** Swagger (OpenAPI)
+- **Mail:** Nodemailer (SMTP)
+- **Validation:** class-validator / class-transformer
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Architecture
 
-## Project setup
-
-```bash
-$ npm install
+```
+src/
+├── common/                 # Shared utilities, guards, decorators, DTOs, enums
+│   ├── decorators/         # @CurrentUser, @Roles, @IdempotencyKey
+│   ├── dto/                # Pagination, ApiResponse, Swagger schemas
+│   ├── entities/           # Base entity with UUID + timestamps
+│   ├── enums/              # Currency, TransactionType, TransactionStatus, UserRole
+│   ├── filters/            # Global exception filter
+│   ├── guards/             # JWT, Roles, VerifiedEmail guards
+│   ├── interceptors/       # Logging, Response transform
+│   └── utils/              # OTP generator
+├── config/                 # Typed config modules (db, jwt, redis, mail, fx)
+├── database/               # Seed script
+└── modules/
+    ├── auth/               # Registration, OTP verification, login
+    ├── user/               # User entity, repository, profile endpoint
+    ├── wallet/             # Multi-currency wallets, fund/convert/trade/transfer
+    ├── fx/                 # Real-time FX rates with Redis caching
+    ├── transaction/        # Transaction history with filtering
+    ├── admin/              # Admin-only user/transaction management
+    ├── mail/               # Email service for OTP delivery
+    ├── redis/              # Global Redis service
+    └── health/             # Health check with DB + Redis probes
 ```
 
-## Compile and run the project
+### Key Design Decisions
+
+- **Multi-currency wallet model:** Each user has one wallet row per currency (unique constraint on `userId + currency`). Wallets are lazily created on first interaction via `getOrCreate`.
+- **Pessimistic locking:** All balance mutations acquire a `FOR UPDATE` row lock within a database transaction to prevent race conditions and double-spending.
+- **Idempotency:** Every wallet operation accepts an `idempotencyKey` (via body or `X-Idempotency-Key` header). Duplicate requests return the original transaction instead of processing again.
+- **FX rate caching:** Rates are cached in Redis with a 5-minute TTL. A separate stale copy with 24-hour TTL serves as fallback when the external API is unavailable.
+- **Transaction atomicity:** Fund, convert, trade, and transfer operations run inside TypeORM transactions. If any step fails, the entire operation rolls back.
+- **Role-based access:** Users have `USER` or `ADMIN` roles. Admin endpoints are protected by a `RolesGuard`. Only verified users can access wallet/trading features.
+- **Rate limiting:** Global throttling is applied to all endpoints, with tighter limits on login (5/min) and OTP resend (3/min).
+
+## Setup Instructions
+
+### Prerequisites
+
+- Node.js >= 18
+- PostgreSQL >= 14
+- Redis >= 6
+
+### 1. Clone and install
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+git clone <repo-url>
+cd fx-trading-app
+npm install
 ```
 
-## Run tests
+### 2. Configure environment
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+cp .env.example .env
+# Edit .env with your database, Redis, mail, and FX API credentials
 ```
 
-## Deployment
+| Variable | Description |
+|----------|-------------|
+| `DB_HOST` | PostgreSQL host |
+| `DB_PORT` | PostgreSQL port (default: 5432) |
+| `DB_USERNAME` | Database user |
+| `DB_PASSWORD` | Database password |
+| `DB_NAME` | Database name |
+| `JWT_SECRET` | Secret for signing JWT tokens |
+| `JWT_EXPIRATION` | Token expiry in seconds (default: 3600) |
+| `REDIS_HOST` | Redis host |
+| `REDIS_PORT` | Redis port (default: 6379) |
+| `MAIL_HOST` | SMTP host |
+| `MAIL_PORT` | SMTP port |
+| `MAIL_USER` | SMTP username |
+| `MAIL_PASSWORD` | SMTP password |
+| `FX_API_KEY` | API key from exchangerate-api.com |
+| `FX_API_URL` | FX API base URL |
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### 3. Create database
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+createdb fx_trading
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### 4. Run the application
 
-## Resources
+```bash
+# Development
+npm run start:dev
 
-Check out a few resources that may come in handy when working with NestJS:
+# Production
+npm run build
+npm run start:prod
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+### 5. Seed admin user (optional)
 
-## Support
+```bash
+npm run seed
+# Creates: admin@fxtrading.com / Admin@123
+```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+### 6. Access Swagger docs
 
-## Stay in touch
+Open [http://localhost:3000/api/docs](http://localhost:3000/api/docs)
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+## API Endpoints
+
+### Auth
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/auth/register` | Register user, sends OTP email |
+| POST | `/api/v1/auth/verify` | Verify email with OTP |
+| POST | `/api/v1/auth/login` | Login, returns JWT token |
+| POST | `/api/v1/auth/resend-otp` | Resend verification OTP |
+
+### User
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/user/profile` | Get authenticated user profile |
+
+### Wallet
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/wallet` | Get all currency balances |
+| POST | `/api/v1/wallet/fund` | Fund wallet in any currency |
+| POST | `/api/v1/wallet/convert` | Convert between any two currencies |
+| POST | `/api/v1/wallet/trade` | Trade NGN against other currencies |
+| POST | `/api/v1/wallet/transfer` | Transfer funds to another user |
+
+### FX Rates
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/fx/rates` | Get rates for a base currency |
+| GET | `/api/v1/fx/rates/all` | Get full rate matrix |
+
+### Transactions
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/transactions` | Filtered, paginated transaction history |
+
+### Admin (requires ADMIN role)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/admin/users` | List all users |
+| GET | `/api/v1/admin/users/:id/wallets` | Get user's wallets |
+| GET | `/api/v1/admin/transactions` | List all transactions |
+| GET | `/api/v1/admin/transactions/summary` | Aggregated transaction stats |
+
+### Health
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/health` | Database and Redis health check |
+
+## Assumptions
+
+- **FX Rates:** Sourced from exchangerate-api.com. Rates are cached for 5 minutes with a 24-hour stale fallback. Conversions use mid-market rates without spread (no buy/sell price differentiation).
+- **Funding:** Simulated — `POST /wallet/fund` credits the balance directly. In production, this would be behind a payment gateway callback.
+- **Trading constraint:** Trades must have NGN on at least one side (e.g., NGN→USD or EUR→NGN). Conversions have no such restriction.
+- **Transfers:** Same-currency only. Cross-currency transfers would require combining transfer + conversion.
+- **OTP:** 6-digit numeric code with 10-minute expiry, delivered via SMTP.
+- **Wallet precision:** Balances stored as `DECIMAL(18,4)` — supports up to 14 integer digits with 4 decimal places.
+- **Idempotency:** Keys are stored as unique columns on transactions. Providing the same key returns the original result.
+
+## Running Tests
+
+```bash
+# All tests
+npm test
+
+# With coverage
+npm run test:cov
+
+# Watch mode
+npm run test:watch
+```
+
+## Scalability Considerations
+
+- **Horizontal scaling:** Stateless JWT auth allows multiple app instances behind a load balancer.
+- **Redis caching:** FX rates and future session data are stored in Redis, which can be clustered.
+- **Database connection pooling:** TypeORM manages a connection pool; configure `extra.max` for high-traffic scenarios.
+- **Row-level locking:** Pessimistic locks are scoped to individual wallet rows, minimizing contention across users.
+- **Pagination:** All list endpoints are paginated to prevent unbounded queries.
+- **Rate limiting:** Throttler protects against abuse; can be backed by Redis for distributed rate limiting.
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+UNLICENSED
