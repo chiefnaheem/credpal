@@ -15,6 +15,7 @@ import { FxModule } from './modules/fx/fx.module';
 import { WalletModule } from './modules/wallet/wallet.module';
 import { TransactionModule } from './modules/transaction/transaction.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { HealthModule } from './modules/health/health.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { AdminModule } from './modules/admin/admin.module';
     WalletModule,
     TransactionModule,
     AdminModule,
+    HealthModule,
   ],
 })
 export class AppModule {}
