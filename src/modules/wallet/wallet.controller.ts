@@ -3,13 +3,14 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagg
 import { WalletService } from './wallet.service';
 import { FundWalletDto, ConvertCurrencyDto, TradeCurrencyDto } from './dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { VerifiedEmailGuard } from '../../common/guards/verified-email.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ApiResponseDto } from '../../common/dto';
 import { User } from '../user/entities/user.entity';
 
 @ApiTags('Wallet')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, VerifiedEmailGuard)
 @Controller('wallet')
 export class WalletController {
   constructor(private readonly walletService: WalletService) {}

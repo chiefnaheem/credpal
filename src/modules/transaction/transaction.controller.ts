@@ -2,13 +2,14 @@ import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { TransactionService } from './transaction.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { VerifiedEmailGuard } from '../../common/guards/verified-email.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { PaginationDto, ApiResponseDto } from '../../common/dto';
 import { User } from '../user/entities/user.entity';
 
 @ApiTags('Transactions')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, VerifiedEmailGuard)
 @Controller('transactions')
 export class TransactionController {
   constructor(private readonly transactionService: TransactionService) {}
