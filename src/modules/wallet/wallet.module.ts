@@ -6,12 +6,14 @@ import { WalletService } from './wallet.service';
 import { WalletController } from './wallet.controller';
 import { TransactionModule } from '../transaction/transaction.module';
 import { FxModule } from '../fx/fx.module';
+import { UserModule } from '../user/user.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Wallet]),
     TransactionModule,
     FxModule,
+    UserModule,
   ],
   controllers: [WalletController],
   providers: [WalletRepository, WalletService],

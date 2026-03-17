@@ -9,7 +9,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { WalletRepository } from './wallet.repository';
 import { TransactionRepository } from '../transaction/transaction.repository';
 import { FxService } from '../fx/fx.service';
-import { FundWalletDto, ConvertCurrencyDto, TradeCurrencyDto } from './dto';
+import { UserService } from '../user/user.service';
+import { FundWalletDto, ConvertCurrencyDto, TradeCurrencyDto, TransferDto } from './dto';
 import { Currency, TransactionType, TransactionStatus } from '../../common/enums';
 
 @Injectable()
@@ -20,6 +21,7 @@ export class WalletService {
     private readonly walletRepository: WalletRepository,
     private readonly transactionRepository: TransactionRepository,
     private readonly fxService: FxService,
+    private readonly userService: UserService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -240,6 +242,85 @@ export class WalletService {
         ...this.formatTransactionResponse(transaction),
         sourceBalance: newSourceBalance,
         targetBalance: newTargetBalance,
+      };
+    });
+  }
+
+  async transfer(userId: string, dto: TransferDto) {
+    const sender = await this.userService.findById(userId);
+    const recipient = await this.userService.findByEmail(dto.recipientEmail);
+
+    if (!recipient) {
+      throw new BadRequestException('Recipient not found');
+    }
+
+    if (recipient.id === userId) {
+      throw new BadRequestException('Cannot transfer to yourself');
+    }
+
+    if (!recipient.isEmailVerified) {
+      throw new BadRequestException('Recipient account is not verified');
+    }
+
+    const idempotencyKey = dto.idempotencyKey || uuidv4();
+
+    const existing = await this.transactionRepository.findByIdempotencyKey(idempotencyKey);
+    if (existing) {
+      this.logger.warn(`Duplicate transfer request detected: ${idempotencyKey}`);
+      return this.formatTransactionResponse(existing);
+    }
+
+    return this.dataSource.transaction(async (manager) => {
+      await this.walletRepository.getOrCreate(userId, dto.currency, manager);
+      await this.walletRepository.getOrCreate(recipient.id, dto.currency, manager);
+
+      const senderWallet = await this.walletRepository.findByUserAndCurrencyForUpdate(
+        userId,
+        dto.currency,
+        manager,
+      );
+
+      const recipientWallet = await this.walletRepository.findByUserAndCurrencyForUpdate(
+        recipient.id,
+        dto.currency,
+        manager,
+      );
+
+      if (Number(senderWallet.balance) < dto.amount) {
+        throw new BadRequestException(
+          `Insufficient ${dto.currency} balance. Available: ${senderWallet.balance}`,
+        );
+      }
+
+      const newSenderBalance = Number(senderWallet.balance) - dto.amount;
+      const newRecipientBalance = Number(recipientWallet.balance) + dto.amount;
+
+      await this.walletRepository.updateBalance(senderWallet.id, newSenderBalance, manager);
+      await this.walletRepository.updateBalance(recipientWallet.id, newRecipientBalance, manager);
+
+      const transaction = await this.transactionRepository.create(
+        {
+          userId,
+          type: TransactionType.TRANSFER,
+          status: TransactionStatus.COMPLETED,
+          fromCurrency: dto.currency,
+          toCurrency: dto.currency,
+          fromAmount: dto.amount,
+          toAmount: dto.amount,
+          idempotencyKey,
+          description: `Transferred ${dto.amount} ${dto.currency} to ${dto.recipientEmail}`,
+          metadata: { recipientId: recipient.id, recipientEmail: dto.recipientEmail },
+        },
+        manager,
+      );
+
+      this.logger.log(
+        `Transfer: ${dto.amount} ${dto.currency} from ${sender.email} to ${dto.recipientEmail}`,
+      );
+
+      return {
+        ...this.formatTransactionResponse(transaction),
+        senderBalance: newSenderBalance,
       };
     });
   }

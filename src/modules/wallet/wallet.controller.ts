@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiHeader } from '@nestjs/swagger';
 import { WalletService } from './wallet.service';
-import { FundWalletDto, ConvertCurrencyDto, TradeCurrencyDto } from './dto';
+import { FundWalletDto, ConvertCurrencyDto, TradeCurrencyDto, TransferDto } from './dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { VerifiedEmailGuard } from '../../common/guards/verified-email.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -73,5 +73,21 @@ export class WalletController {
     if (headerKey) dto.idempotencyKey = headerKey;
     const result = await this.walletService.tradeCurrency(user.id, dto);
     return ApiResponseDto.success(result, 'Trade executed successfully');
+  }
+
+  @Post('transfer')
+  @ApiOperation({ summary: 'Transfer funds to another user by email' })
+  @ApiHeader({ name: 'x-idempotency-key', required: false, description: 'Unique key to prevent duplicate requests' })
+  @ApiResponse({ status: 201, description: 'Transfer completed successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid input, insufficient balance, or recipient not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async transfer(
+    @CurrentUser() user: User,
+    @Body() dto: TransferDto,
+    @IdempotencyKey() headerKey?: string,
+  ) {
+    if (headerKey) dto.idempotencyKey = headerKey;
+    const result = await this.walletService.transfer(user.id, dto);
+    return ApiResponseDto.success(result, 'Transfer completed successfully');
   }
 }
