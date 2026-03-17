@@ -14,6 +14,7 @@ export interface RateCache {
   rates: Record<string, number>;
   baseCurrency: string;
   fetchedAt: string;
+  isStale?: boolean;
 }
 
 @Injectable()
@@ -22,6 +23,7 @@ export class FxService {
   private readonly apiUrl: string;
   private readonly apiKey: string;
   private readonly cacheTtl = 300; // 5 minutes
+  private readonly staleTtl = 86400; // 24 hours for stale fallback
   private readonly cachePrefix = 'fx:rates:';
 
   constructor(
@@ -118,6 +120,12 @@ export class FxService {
         this.cacheTtl,
       );
 
+      await this.redisService.setJson(
+        `${this.cachePrefix}${baseCurrency}:stale`,
+        rateCache,
+        this.staleTtl,
+      );
+
       this.logger.log(`Fetched and cached rates for ${baseCurrency}`);
       return rateCache;
     } catch (error) {
@@ -128,7 +136,7 @@ export class FxService {
       const stale = await this.redisService.getJson<RateCache>(staleKey);
       if (stale) {
         this.logger.warn(`Returning stale cached rates for ${baseCurrency}`);
-        return stale;
+        return { ...stale, isStale: true };
       }
 
       throw new ServiceUnavailableException(
