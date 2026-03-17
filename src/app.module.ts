@@ -10,6 +10,7 @@ import {
   redisConfig,
   mailConfig,
   fxConfig,
+  envValidationSchema,
 } from './config';
 import { AuthModule } from './modules/auth/auth.module';
 import { RedisModule } from './modules/redis/redis.module';
@@ -24,6 +25,7 @@ import { HealthModule } from './modules/health/health.module';
     ConfigModule.forRoot({
       isGlobal: true,
       load: [appConfig, databaseConfig, jwtConfig, redisConfig, mailConfig, fxConfig],
+      validationSchema: envValidationSchema,
       envFilePath: '.env',
     }),
     TypeOrmModule.forRootAsync({
