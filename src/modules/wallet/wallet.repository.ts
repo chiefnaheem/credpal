@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, EntityManager } from 'typeorm';
 import { Wallet } from './entities/wallet.entity';
@@ -30,14 +30,20 @@ export class WalletRepository {
     userId: string,
     currency: Currency,
     manager: EntityManager,
-  ): Promise<Wallet | null> {
-    return manager
+  ): Promise<Wallet> {
+    const wallet = await manager
       .getRepository(Wallet)
       .createQueryBuilder('wallet')
       .setLock('pessimistic_write')
       .where('wallet.userId = :userId', { userId })
       .andWhere('wallet.currency = :currency', { currency })
       .getOne();
+
+    if (!wallet) {
+      throw new NotFoundException(`${currency} wallet not found`);
+    }
+
+    return wallet;
   }
 
   async findAllByUser(userId: string): Promise<Wallet[]> {
