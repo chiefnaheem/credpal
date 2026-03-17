@@ -10,6 +10,8 @@ import {
   fxConfig,
 } from './config';
 import { AuthModule } from './modules/auth/auth.module';
+import { RedisModule } from './modules/redis/redis.module';
+import { FxModule } from './modules/fx/fx.module';
 
 @Module({
   imports: [
@@ -32,7 +34,9 @@ import { AuthModule } from './modules/auth/auth.module';
         logging: config.get<string>('app.nodeEnv') === 'development',
       }),
     }),
+    RedisModule,
     AuthModule,
+    FxModule,
   ],
 })
 export class AppModule {}
