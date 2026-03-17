@@ -34,10 +34,10 @@ export class User extends BaseEntity {
   isEmailVerified: boolean;
 
   @Column({ nullable: true, select: false })
-  otpCode: string;
+  otpCode: string | null;
 
   @Column({ type: 'timestamp', nullable: true, select: false })
-  otpExpiresAt: Date;
+  otpExpiresAt: Date | null;
 
   @BeforeInsert()
   async hashPassword() {

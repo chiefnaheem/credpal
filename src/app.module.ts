@@ -9,6 +9,7 @@ import {
   mailConfig,
   fxConfig,
 } from './config';
+import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import {
         logging: config.get<string>('app.nodeEnv') === 'development',
       }),
     }),
+    AuthModule,
   ],
 })
 export class AppModule {}
