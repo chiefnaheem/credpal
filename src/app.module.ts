@@ -12,6 +12,7 @@ import {
 import { AuthModule } from './modules/auth/auth.module';
 import { RedisModule } from './modules/redis/redis.module';
 import { FxModule } from './modules/fx/fx.module';
+import { WalletModule } from './modules/wallet/wallet.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { FxModule } from './modules/fx/fx.module';
     RedisModule,
     AuthModule,
     FxModule,
+    WalletModule,
   ],
 })
 export class AppModule {}

@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Wallet } from './entities/wallet.entity';
 import { WalletRepository } from './wallet.repository';
 import { WalletService } from './wallet.service';
+import { WalletController } from './wallet.controller';
 import { TransactionModule } from '../transaction/transaction.module';
 import { FxModule } from '../fx/fx.module';
 
@@ -12,6 +13,7 @@ import { FxModule } from '../fx/fx.module';
     TransactionModule,
     FxModule,
   ],
+  controllers: [WalletController],
   providers: [WalletRepository, WalletService],
   exports: [WalletRepository, WalletService],
 })
