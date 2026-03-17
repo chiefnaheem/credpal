@@ -14,6 +14,7 @@ import { RedisModule } from './modules/redis/redis.module';
 import { FxModule } from './modules/fx/fx.module';
 import { WalletModule } from './modules/wallet/wallet.module';
 import { TransactionModule } from './modules/transaction/transaction.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { TransactionModule } from './modules/transaction/transaction.module';
     FxModule,
     WalletModule,
     TransactionModule,
+    AdminModule,
   ],
 })
 export class AppModule {}
