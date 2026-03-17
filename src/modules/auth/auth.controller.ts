@@ -1,5 +1,6 @@
 import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RegisterDto, VerifyOtpDto, LoginDto, ResendOtpDto } from './dto';
 import { ApiResponseDto } from '../../common/dto';
@@ -29,6 +30,7 @@ export class AuthController {
   }
 
   @Post('login')
+  @Throttle({ short: { ttl: 60000, limit: 5 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login with email and password' })
   @ApiResponse({ status: 200, description: 'Login successful, access token returned' })
@@ -39,6 +41,7 @@ export class AuthController {
   }
 
   @Post('resend-otp')
+  @Throttle({ short: { ttl: 60000, limit: 3 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Resend OTP to email' })
   @ApiResponse({ status: 200, description: 'New OTP sent' })
