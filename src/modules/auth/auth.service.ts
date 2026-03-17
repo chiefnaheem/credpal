@@ -7,9 +7,11 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { UserService } from '../user/user.service';
 import { MailService } from '../mail/mail.service';
+import { WalletRepository } from '../wallet/wallet.repository';
 import { RegisterDto, VerifyOtpDto, LoginDto, ResendOtpDto } from './dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { generateOtp, getOtpExpiry } from '../../common/utils';
+import { Currency } from '../../common/enums';
 
 @Injectable()
 export class AuthService {
@@ -17,6 +19,7 @@ export class AuthService {
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
+    private readonly walletRepository: WalletRepository,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -33,6 +36,8 @@ export class AuthService {
       otpCode: otp,
       otpExpiresAt,
     });
+
+    await this.walletRepository.create(user.id, Currency.NGN);
 
     await this.mailService.sendOtp(user.email, otp);
 
