@@ -1,10 +1,11 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { TransactionService } from './transaction.service';
+import { TransactionFilterDto } from './dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { VerifiedEmailGuard } from '../../common/guards/verified-email.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { PaginationDto, ApiResponseDto } from '../../common/dto';
+import { ApiResponseDto } from '../../common/dto';
 import { User } from '../user/entities/user.entity';
 
 @ApiTags('Transactions')
@@ -15,14 +16,14 @@ export class TransactionController {
   constructor(private readonly transactionService: TransactionService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get paginated transaction history for the authenticated user' })
+  @ApiOperation({ summary: 'Get filtered, paginated transaction history' })
   @ApiResponse({ status: 200, description: 'Transaction history retrieved' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getTransactions(
     @CurrentUser() user: User,
-    @Query() pagination: PaginationDto,
+    @Query() filter: TransactionFilterDto,
   ) {
-    const result = await this.transactionService.getUserTransactions(user.id, pagination);
+    const result = await this.transactionService.getUserTransactions(user.id, filter);
     return ApiResponseDto.success(result.transactions, 'Transaction history retrieved', result.meta);
   }
 }

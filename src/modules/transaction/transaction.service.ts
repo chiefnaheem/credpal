@@ -1,16 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { TransactionRepository } from './transaction.repository';
-import { PaginationDto } from '../../common/dto';
+import { TransactionFilterDto } from './dto';
 
 @Injectable()
 export class TransactionService {
   constructor(private readonly transactionRepository: TransactionRepository) {}
 
-  async getUserTransactions(userId: string, pagination: PaginationDto) {
-    const { data, total } = await this.transactionRepository.findByUser(userId, pagination);
+  async getUserTransactions(userId: string, filter: TransactionFilterDto) {
+    const { data, total } = await this.transactionRepository.findByUser(userId, filter);
 
-    const page = pagination.page ?? 1;
-    const limit = pagination.limit ?? 20;
+    const page = filter.page ?? 1;
+    const limit = filter.limit ?? 20;
 
     return {
       transactions: data.map((t) => ({

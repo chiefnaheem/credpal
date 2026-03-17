@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, EntityManager } from 'typeorm';
 import { Transaction } from './entities/transaction.entity';
-import { PaginationDto } from '../../common/dto';
+import { TransactionFilterDto } from './dto';
 
 @Injectable()
 export class TransactionRepository {
@@ -23,19 +23,36 @@ export class TransactionRepository {
 
   async findByUser(
     userId: string,
-    pagination: PaginationDto,
+    filter: TransactionFilterDto,
   ): Promise<{ data: Transaction[]; total: number }> {
-    const page = pagination.page ?? 1;
-    const limit = pagination.limit ?? 20;
+    const page = filter.page ?? 1;
+    const limit = filter.limit ?? 20;
     const skip = (page - 1) * limit;
 
-    const [data, total] = await this.repo.findAndCount({
-      where: { userId },
-      order: { createdAt: 'DESC' },
-      skip,
-      take: limit,
-    });
+    const qb = this.repo
+      .createQueryBuilder('t')
+      .where('t.userId = :userId', { userId })
+      .orderBy('t.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit);
 
+    if (filter.type) {
+      qb.andWhere('t.type = :type', { type: filter.type });
+    }
+
+    if (filter.status) {
+      qb.andWhere('t.status = :status', { status: filter.status });
+    }
+
+    if (filter.fromDate) {
+      qb.andWhere('t.createdAt >= :fromDate', { fromDate: filter.fromDate });
+    }
+
+    if (filter.toDate) {
+      qb.andWhere('t.createdAt <= :toDate', { toDate: new Date(filter.toDate + 'T23:59:59') });
+    }
+
+    const [data, total] = await qb.getManyAndCount();
     return { data, total };
   }
 
